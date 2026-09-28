@@ -2,6 +2,9 @@
   "name": "tours-erp",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "next dev -H 0.0.0.0 -p 3000",
     "build": "next build",
@@ -38,11 +41,11 @@
     "eslint-config-next": "15.5.26",
     "tsx": "^4.23.15"
   },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
-  },
   "optionalDependencies": {
     "@tailwindcss/oxide-linux-x64-gnu": "4.3.3",
     "lightningcss-linux-x64-gnu": "1.32.0"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }
