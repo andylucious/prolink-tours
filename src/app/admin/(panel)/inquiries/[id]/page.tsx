@@ -121,7 +121,12 @@ export default async function InquiryPage({ params }: { params: Promise<{ id: st
                     <Link href={`/admin/quotes/${q.id}`} className="text-brand-700 hover:underline">
                       {q.number} — {q.title}
                     </Link>
-                    <Badge value={q.status} />
+                    <span className="flex items-center gap-2">
+                      <Badge value={q.status} />
+                      <a href={`/admin/print/quote/${q.id}`} target="_blank" rel="noopener noreferrer" className="btn-outline btn-sm">
+                        🖨 Print / PDF
+                      </a>
+                    </span>
                   </li>
                 ))}
               </ul>

@@ -27,8 +27,16 @@ async function uniqueSlug(model: "tour" | "blogPost" | "category", base: string,
 
 // ───────── Tours ─────────
 
+const KINDS = ["TOUR", "EVENT", "ROAD_TRIP"] as const;
+
 async function tourData(fd: FormData) {
+  const kind = KINDS.find((k) => k === str(fd, "kind")) ?? "TOUR";
+  const cap = int(fd, "capacity", 0);
   return {
+    kind,
+    // Blank or 0 = no limit; otherwise the number of seats that can be sold for this departure.
+    capacity: cap > 0 ? cap : null,
+    eventDate: kind === "TOUR" ? null : dateOrNull(fd, "eventDate"),
     title: str(fd, "title"),
     summary: str(fd, "summary"),
     description: str(fd, "description"),

@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { money } from "@/lib/format";
+import { date, money } from "@/lib/format";
+import { seatsTakenByTour } from "@/lib/seats";
 import { Empty, PageHeader } from "@/components/admin/ui";
 
 export const metadata = { title: "Tours" };
 
 export default async function ToursAdminPage() {
+  const taken = await seatsTakenByTour();
   const tours = await db.tour.findMany({
     include: { category: true, _count: { select: { days: true, rates: true, images: true, inquiries: true, bookings: true } } },
     orderBy: [{ category: { sort: "asc" } }, { title: "asc" }],
@@ -52,7 +54,15 @@ export default async function ToursAdminPage() {
                       {t.durationDays} days · {t.destination}
                     </p>
                   </td>
-                  <td>{t.category.name}</td>
+                  <td>
+                    {t.category.name}
+                    {t.kind !== "TOUR" && <p className="text-xs font-semibold text-accent-600">{t.kind === "EVENT" ? "Event" : "Road trip"}{t.eventDate ? ` · ${date(t.eventDate)}` : ""}</p>}
+                    {t.capacity != null && (
+                      <p className={`text-xs ${(taken.get(t.id) ?? 0) >= t.capacity ? "font-semibold text-red-600" : "text-stone-500"}`}>
+                        {taken.get(t.id) ?? 0} / {t.capacity} seats sold
+                      </p>
+                    )}
+                  </td>
                   <td className="whitespace-nowrap">{money(t.priceFrom, t.currency)}</td>
                   <td className="text-xs text-stone-600">
                     {t._count.days} days · {t._count.rates} rates · {t._count.images} photos

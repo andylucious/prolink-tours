@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { db } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
+import { seatsLeft, seatsTakenByTour } from "@/lib/seats";
 import { TourCard } from "@/components/site/TourCard";
 
 export const dynamic = "force-dynamic";
@@ -9,11 +10,12 @@ export const dynamic = "force-dynamic";
 export default async function HomePage() {
   // Trimmed to the columns each section actually renders — these big TEXT fields
   // (description, inclusions, itinerary content…) don't need to cross the wire for a card grid.
+  const taken = await seatsTakenByTour();
   const [s, featured, categories, posts] = await Promise.all([
     getSettings(),
     db.tour.findMany({
       where: { published: true, featured: true },
-      select: { id: true, slug: true, title: true, summary: true, destination: true, durationDays: true, coverImage: true, priceFrom: true, currency: true, category: { select: { name: true } } },
+      select: { id: true, slug: true, title: true, summary: true, destination: true, durationDays: true, coverImage: true, priceFrom: true, currency: true, kind: true, capacity: true, eventDate: true, category: { select: { name: true } } },
       take: 6,
       orderBy: { createdAt: "asc" },
     }),
@@ -78,9 +80,10 @@ export default async function HomePage() {
           </Link>
         </div>
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {featured.map((t) => (
-            <TourCard key={t.id} tour={t} />
-          ))}
+          {featured.map((f) => {
+            const t = { ...f, seatsLeft: seatsLeft(f.capacity, taken.get(f.id) ?? 0) };
+            return <TourCard key={t.id} tour={t} />;
+          })}
         </div>
       </section>
 

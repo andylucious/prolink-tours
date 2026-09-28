@@ -25,6 +25,9 @@ model User {
   // regardless of this list. See PERMISSIONS in src/lib/permissions.ts.
   permissions  Json?
   active       Boolean   @default(true)
+  // Back-office lock-out: 3 wrong passwords in a row locks the account until an admin unlocks it.
+  failedLogins Int       @default(0)
+  lockedAt     DateTime?
   createdAt    DateTime  @default(now())
   inquiries    Inquiry[]
 }
@@ -46,9 +49,20 @@ model Category {
   tours       Tour[]
 }
 
+enum TourKind {
+  TOUR
+  EVENT
+  ROAD_TRIP
+}
+
 model Tour {
   id              Int         @id @default(autoincrement())
   slug            String      @unique
+  kind            TourKind    @default(TOUR)
+  // Seat limit for a fixed departure, e.g. 33 for a road trip or event. Null = no limit.
+  capacity        Int?
+  // The date of a one-off event / road trip (regular tours are booked for any date).
+  eventDate       DateTime?   @db.Date
   title           String
   summary         String      @db.VarChar(500)
   description     String      @db.Text

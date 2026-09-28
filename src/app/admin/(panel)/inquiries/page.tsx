@@ -3,6 +3,8 @@ import type { InquiryStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { date, money } from "@/lib/format";
 import { Badge, Empty, PageHeader, SearchBar } from "@/components/admin/ui";
+import { SubmitButton } from "@/components/admin/client";
+import { convertInquiryToQuote } from "@/app/actions/crm";
 
 export const metadata = { title: "Inquiries" };
 const STATUSES = ["NEW", "CONTACTED", "QUOTED", "WON", "LOST"] as const;
@@ -15,7 +17,7 @@ export default async function InquiriesPage({ searchParams }: { searchParams: Pr
         ...(status ? { status: status as InquiryStatus } : {}),
         ...(q ? { OR: [{ name: { contains: q } }, { email: { contains: q } }, { ref: { contains: q } }, { phone: { contains: q } }] } : {}),
       },
-      include: { tour: { select: { title: true } }, assignedTo: { select: { name: true } } },
+      include: { tour: { select: { title: true } }, assignedTo: { select: { name: true } }, quotes: { select: { id: true }, take: 1 } },
       orderBy: { createdAt: "desc" },
       take: 200,
     }),
@@ -60,6 +62,7 @@ export default async function InquiriesPage({ searchParams }: { searchParams: Pr
                 <th className="text-right">Estimate</th>
                 <th>Assigned</th>
                 <th>Status</th>
+                <th />
               </tr>
             </thead>
             <tbody>
@@ -84,6 +87,19 @@ export default async function InquiriesPage({ searchParams }: { searchParams: Pr
                   <td className="text-stone-600">{i.assignedTo?.name ?? "—"}</td>
                   <td>
                     <Badge value={i.status} />
+                  </td>
+                  <td className="whitespace-nowrap text-right">
+                    {i.quotes[0] ? (
+                      <Link href={`/admin/quotes/${i.quotes[0].id}`} className="btn-outline btn-sm">
+                        View quote
+                      </Link>
+                    ) : i.status !== "LOST" ? (
+                      <form action={convertInquiryToQuote.bind(null, i.id)}>
+                        <SubmitButton className="btn-primary btn-sm" pendingLabel="Creating…">
+                          Create quote →
+                        </SubmitButton>
+                      </form>
+                    ) : null}
                   </td>
                 </tr>
               ))}

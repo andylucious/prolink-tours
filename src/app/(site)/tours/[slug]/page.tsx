@@ -74,6 +74,13 @@ export default async function TourPage({ params }: Params) {
           <h1 className="mt-4 max-w-3xl font-display text-4xl text-white md:text-5xl">{tour.title}</h1>
           <p className="mt-3 max-w-2xl text-lg text-white/85">{tour.summary}</p>
           <div className="mt-5 flex flex-wrap gap-6 text-sm text-white">
+            {tour.kind !== "TOUR" && (
+              <span className="rounded-full bg-accent-500 px-3 py-0.5 text-xs font-bold uppercase tracking-wide">{tour.kind === "EVENT" ? "Event" : "Road trip"}</span>
+            )}
+            {tour.eventDate && <span>📅 {tour.eventDate.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}</span>}
+            {pricingTour?.seatsLeft != null && (
+              <span className="font-semibold text-accent-400">{pricingTour.seatsLeft === 0 ? "Fully booked" : `${pricingTour.seatsLeft} of ${tour.capacity} seats left`}</span>
+            )}
             <span>🗓 {tour.durationDays} {tour.durationDays === 1 ? "day" : "days"}</span>
             <span>📍 {tour.destination}</span>
             <span>
@@ -216,7 +223,11 @@ export default async function TourPage({ params }: Params) {
             <p className="text-sm text-stone-500">From</p>
             <p className="text-3xl font-bold text-brand-700">{money(tour.priceFrom, tour.currency)}</p>
             <p className="text-xs text-stone-500">per person, sharing</p>
-            {pricingTour && <BookNowButton data={pricing} tour={pricingTour} loggedIn={!!customerSession} className="btn-accent mt-6 w-full py-3 text-base" />}
+            {pricingTour && pricingTour.seatsLeft === 0 ? (
+              <p className="mt-6 rounded-lg bg-red-50 py-3 text-center text-base font-semibold text-red-700">Fully booked</p>
+            ) : (
+              pricingTour && <BookNowButton data={pricing} tour={pricingTour} loggedIn={!!customerSession} className="btn-accent mt-6 w-full py-3 text-base" />
+            )}
             <Link href={`/inquire?tour=${tour.slug}`} className="btn-outline mt-3 w-full">
               Inquire / ask a question first
             </Link>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getReportData } from "@/lib/reports";
-import { CURRENCIES, label, money } from "@/lib/format";
+import { CURRENCIES, date, label, money } from "@/lib/format";
 import { Card, PageHeader, Stat } from "@/components/admin/ui";
 
 export const metadata = { title: "Reports" };
@@ -154,6 +154,80 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
             ))}
             {!r.sources.length && <p className="text-sm text-stone-500">No inquiries yet this year.</p>}
           </div>
+        </Card>
+      </div>
+      <h2 className="mb-3 mt-10 font-display text-xl text-stone-900">New clients &amp; accounts — {year}</h2>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Stat label="New inquiries" value={r.inquiriesCount} hint={`from ${r.uniqueInquirers} different people`} />
+        <Stat label="New clients" value={r.newClientsCount} hint="added to your client list" />
+        <Stat label="Client accounts" value={r.newAccountsCount} hint="signed themselves up (email or Google)" />
+        <Stat label="Sign-up rate" value={r.newClientsCount ? `${Math.round((r.newAccountsCount / r.newClientsCount) * 100)}%` : "—"} hint="of new clients have an account" />
+      </div>
+      <div className="mt-6 grid gap-6 xl:grid-cols-2">
+        <Card title="New inquiries by month">
+          <div className="flex h-40 items-end gap-2">
+            {r.inquiriesByMonth.map((x) => {
+              const max = Math.max(1, ...r.inquiriesByMonth.map((y) => y.total));
+              return (
+                <div key={x.m} className="flex flex-1 flex-col items-center gap-1" title={`${x.total} inquiries`}>
+                  <span className="text-[10px] font-semibold text-stone-600">{x.total || ""}</span>
+                  <div className="w-full rounded-t bg-accent-400" style={{ height: `${(x.total / max) * 100}%`, minHeight: x.total ? 4 : 0 }} />
+                  <span className="text-[10px] text-stone-500">{new Date(Date.UTC(2000, x.m, 1)).toLocaleString("en", { month: "short", timeZone: "UTC" })}</span>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+        <Card title="New client accounts by month">
+          <div className="flex h-40 items-end gap-2">
+            {r.clientsByMonth.map((x) => {
+              const max = Math.max(1, ...r.clientsByMonth.map((y) => y.clients));
+              return (
+                <div key={x.m} className="flex flex-1 flex-col items-center gap-1" title={`${x.clients} clients, ${x.accounts} with accounts`}>
+                  <span className="text-[10px] font-semibold text-stone-600">{x.accounts || ""}</span>
+                  <div className="flex w-full flex-col justify-end rounded-t bg-stone-200" style={{ height: `${(x.clients / max) * 100}%`, minHeight: x.clients ? 4 : 0 }}>
+                    <div className="w-full rounded-t bg-brand-500" style={{ height: x.clients ? `${(x.accounts / x.clients) * 100}%` : 0 }} />
+                  </div>
+                  <span className="text-[10px] text-stone-500">{new Date(Date.UTC(2000, x.m, 1)).toLocaleString("en", { month: "short", timeZone: "UTC" })}</span>
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-3 text-xs text-stone-500">
+            <span className="mr-1 inline-block h-2 w-2 rounded-sm bg-brand-500" /> with an account
+            <span className="ml-3 mr-1 inline-block h-2 w-2 rounded-sm bg-stone-200" /> all new clients
+          </p>
+        </Card>
+        <Card title="Latest client sign-ins" className="xl:col-span-2">
+          {r.recentSignIns.length ? (
+            <div className="-m-5 overflow-x-auto">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Client</th>
+                    <th>Joined</th>
+                    <th>Last signed in</th>
+                    <th className="text-right">Bookings</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {r.recentSignIns.map((c) => (
+                    <tr key={c.email ?? c.name}>
+                      <td>
+                        {c.name}
+                        <p className="text-xs text-stone-500">{c.email}</p>
+                      </td>
+                      <td className="whitespace-nowrap">{date(c.createdAt)}</td>
+                      <td className="whitespace-nowrap">{date(c.lastLoginAt)}</td>
+                      <td className="text-right">{c._count.bookings}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-stone-500">No clients have signed in to their own account yet.</p>
+          )}
         </Card>
       </div>
     </>

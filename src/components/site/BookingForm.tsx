@@ -22,7 +22,10 @@ export function BookingForm({
   onClose: () => void;
 }) {
   const [state, action, pending] = useActionState<BookingFormState, FormData>(createPublicBooking, null);
-  const [startDate, setStartDate] = useState("");
+  // An event / road trip runs on one fixed date, so the date is preset and can't be changed.
+  const fixedDate = tour.eventDate;
+  const [startDate, setStartDate] = useState(fixedDate ?? "");
+  const left = tour.seatsLeft; // null = no seat limit
   const [residency, setResidency] = useState<Residency>("NON_RESIDENT");
   const [adults, setAdults] = useState(2);
   const [children, setChildren] = useState(0);
@@ -72,12 +75,21 @@ export function BookingForm({
 
         <form action={action} className="mt-5 space-y-5">
           <input type="hidden" name="tourId" value={tour.id} />
+          {left != null && (
+            <p className={`rounded-lg p-3 text-sm font-medium ${left === 0 ? "bg-red-50 text-red-700" : left <= 5 ? "bg-amber-50 text-amber-800" : "bg-brand-50 text-brand-800"}`}>
+              {left === 0 ? "Sorry — this trip is fully booked." : `${left} seat${left === 1 ? "" : "s"} left`}
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label" htmlFor="bk-start">
-                Start date *
+                {fixedDate ? "Date" : "Start date *"}
               </label>
-              <input id="bk-start" type="date" name="startDate" required min={today} className="input" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              {fixedDate ? (
+                <p className="input bg-stone-50 font-medium">{new Date(fixedDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}</p>
+              ) : (
+                <input id="bk-start" type="date" name="startDate" required min={today} className="input" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              )}
             </div>
             <div>
               <label className="label" htmlFor="bk-residency">
@@ -92,7 +104,7 @@ export function BookingForm({
               <label className="label" htmlFor="bk-adults">
                 Adults
               </label>
-              <input id="bk-adults" type="number" name="adults" min={1} max={60} className="input" value={adults} onChange={(e) => setAdults(Number(e.target.value))} />
+              <input id="bk-adults" type="number" name="adults" min={1} max={left != null ? Math.max(1, left) : 60} className="input" value={adults} onChange={(e) => setAdults(Number(e.target.value))} />
             </div>
             <div>
               <label className="label" htmlFor="bk-children">
@@ -177,7 +189,11 @@ export function BookingForm({
 
           {state?.error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{state.error}</p>}
 
-          <button disabled={pending} className="btn-accent w-full py-3 text-base">
+          {left != null && adults + children > left && left > 0 && (
+            <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">You&apos;ve chosen {adults + children} travellers but only {left} seat{left === 1 ? " is" : "s are"} left.</p>
+          )}
+
+          <button disabled={pending || left === 0 || (left != null && adults + children > left)} className="btn-accent w-full py-3 text-base">
             {pending && <span className="spinner" />}
             {pending ? "Booking…" : "Confirm booking request"}
           </button>

@@ -2,11 +2,12 @@ import "server-only";
 import { db } from "./db";
 import { getSettings } from "./settings";
 import { toNum } from "./format";
+import { seatsLeft, seatsTakenByTour } from "./seats";
 import type { AddOnInput, RateInput, SeasonInput } from "./pricing";
 
 /** Plain-JSON pricing data for the inquiry form / estimator. */
 export async function getPricingData() {
-  const [tours, seasons, allAddOns, s] = await Promise.all([
+  const [tours, seasons, allAddOns, s, taken] = await Promise.all([
     db.tour.findMany({
       where: { published: true },
       orderBy: { title: "asc" },
@@ -15,6 +16,7 @@ export async function getPricingData() {
     db.season.findMany(),
     db.addOn.findMany({ where: { active: true }, orderBy: [{ type: "asc" }, { name: "asc" }] }),
     getSettings(),
+    seatsTakenByTour(),
   ]);
 
   const mapAddOn = (a: (typeof allAddOns)[number]): AddOnInput & { type: string; description: string | null } => ({
@@ -36,6 +38,10 @@ export async function getPricingData() {
       slug: t.slug,
       title: t.title,
       durationDays: t.durationDays,
+      kind: t.kind,
+      eventDate: t.eventDate ? t.eventDate.toISOString().slice(0, 10) : null,
+      // null = no seat limit; otherwise how many seats are still free right now.
+      seatsLeft: seatsLeft(t.capacity, taken.get(t.id) ?? 0),
       addOnIds: t.addOns.map((a) => a.id),
       rates: t.rates.map<RateInput>((r) => ({
         season: r.season,

@@ -13,6 +13,7 @@ import { dateOrNull, int, opt, str } from "@/lib/form";
 import { money } from "@/lib/format";
 import { CUSTOMER_SESSION_COOKIE, sessionCookieOptions, signCustomerSession } from "@/lib/session";
 import { getCustomerSession } from "@/lib/customer-auth";
+import { CLAIM_BLOCKED, canClaimWithPassword } from "@/lib/customer-claim";
 
 export type BookingFormState = { error?: string; ref?: string } | null;
 const emailOk = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
@@ -26,16 +27,25 @@ export async function createPublicBooking(_: BookingFormState, fd: FormData): Pr
   if (str(fd, "website")) return { ref: "—" }; // honeypot
 
   const tourId = int(fd, "tourId");
-  const startDate = dateOrNull(fd, "startDate");
   const adults = Math.max(1, int(fd, "adults", 1));
   const children = Math.max(0, int(fd, "children", 0));
   const residency = (str(fd, "residency") === "RESIDENT" ? "RESIDENT" : "NON_RESIDENT") as Residency;
-  if (!tourId || !startDate) return { error: "Please choose a tour and a start date." };
+  if (!tourId) return { error: "Please choose a tour." };
   const addOnIds = fd.getAll("addOns").map((v) => Number(v)).filter(Boolean);
 
   const pricing = await getPricingData();
   const tour = pricing.tours.find((t) => t.id === tourId);
   if (!tour) return { error: "That tour could not be found." };
+
+  // A fixed event / road trip runs on its own date, so ignore whatever date the form sent.
+  const startDate = tour.eventDate ? new Date(tour.eventDate) : dateOrNull(fd, "startDate");
+  if (!startDate) return { error: "Please choose a start date." };
+
+  // Seat limit: checked here on the server, so it can't be skipped by editing the form.
+  const seats = adults + children;
+  if (tour.seatsLeft != null && seats > tour.seatsLeft) {
+    return { error: tour.seatsLeft === 0 ? "Sorry, this trip is fully booked." : `Only ${tour.seatsLeft} seat${tour.seatsLeft === 1 ? " is" : "s are"} left — please reduce the number of travellers.` };
+  }
   const endDate = new Date(startDate.getTime() + (tour.durationDays - 1) * 86400000);
 
   const est = estimate({
@@ -70,6 +80,7 @@ export async function createPublicBooking(_: BookingFormState, fd: FormData): Pr
 
     const existing = await db.customer.findUnique({ where: { email } });
     if (existing?.passwordHash) return { error: "An account with this email already exists. Please sign in first, then book." };
+    if (existing && !(await canClaimWithPassword(existing.id))) return { error: CLAIM_BLOCKED };
 
     const passwordHash = await bcrypt.hash(password, 10);
     const customer = existing

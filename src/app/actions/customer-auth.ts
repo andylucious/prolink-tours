@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { CUSTOMER_SESSION_COOKIE, sessionCookieOptions, signCustomerSession } from "@/lib/session";
 import { opt, str } from "@/lib/form";
+import { CLAIM_BLOCKED, canClaimWithPassword } from "@/lib/customer-claim";
 
 export type CustomerFormState = { error?: string } | null;
 
@@ -26,6 +27,7 @@ export async function registerCustomer(_: CustomerFormState, fd: FormData): Prom
 
   const existing = await db.customer.findUnique({ where: { email } });
   if (existing?.passwordHash) return { error: "An account with this email already exists. Please sign in instead." };
+  if (existing && !(await canClaimWithPassword(existing.id))) return { error: CLAIM_BLOCKED };
 
   const passwordHash = await bcrypt.hash(password, 10);
   const customer = existing

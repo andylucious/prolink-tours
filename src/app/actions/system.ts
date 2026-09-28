@@ -44,12 +44,23 @@ export async function saveUser(fd: FormData) {
     permissions,
   };
   if (id) {
-    await db.user.update({ where: { id }, data: { ...data, ...(password ? { passwordHash: await bcrypt.hash(password, 10) } : {}) } });
+    // Setting a new password also clears any lock-out, so "reset password" is all an admin needs.
+    await db.user.update({
+      where: { id },
+      data: { ...data, ...(password ? { passwordHash: await bcrypt.hash(password, 10), failedLogins: 0, lockedAt: null } : {}) },
+    });
   } else {
     if (password.length < 6) redirect("/admin/users?error=password");
     await db.user.create({ data: { ...data, passwordHash: await bcrypt.hash(password, 10) } });
   }
   redirect("/admin/users");
+}
+
+/** Lets a locked-out staff member try again with their current password. */
+export async function unlockUser(id: number) {
+  await requireAdmin();
+  await db.user.update({ where: { id }, data: { failedLogins: 0, lockedAt: null } });
+  redirect("/admin/users?saved=unlocked");
 }
 
 export async function changeOwnPassword(fd: FormData) {

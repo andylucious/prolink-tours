@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { changeOwnPassword, saveUser } from "@/app/actions/system";
+import { changeOwnPassword, saveUser, unlockUser } from "@/app/actions/system";
 import { ALL_PERMISSIONS, parsePermissions, PERMISSIONS } from "@/lib/permissions";
 import { Card, EnumSelect, Field, PageHeader } from "@/components/admin/ui";
 import { SubmitButton } from "@/components/admin/client";
@@ -32,7 +32,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
     <>
       <PageHeader title="Staff users" subtitle="Admins can manage everything. Staff can be given access to only the sections they need." />
       {error && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error === "pw" ? "Current password is wrong, or the new one is under 6 characters." : "Passwords must be at least 6 characters."}</p>}
-      {saved && <p className="mb-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">Password changed.</p>}
+      {saved && <p className="mb-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{saved === "unlocked" ? "Account unlocked — they can sign in again." : "Password changed."}</p>}
       <div className="grid gap-6 lg:grid-cols-3">
         {session.role === "ADMIN" && (
           <div className="space-y-3 lg:col-span-2">
@@ -55,8 +55,18 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
                   <input name="password" type="password" placeholder="leave blank to keep" className="input" autoComplete="new-password" />
                 </Field>
                 <PermissionChecks selected={parsePermissions(u.permissions)} />
-                <div className="md:col-span-6">
+                {u.lockedAt && (
+                  <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700 md:col-span-6">
+                    🔒 Locked after {u.failedLogins} wrong passwords. Click <strong>Unlock</strong>, or type a new password above and Save (that unlocks it too).
+                  </p>
+                )}
+                <div className="flex gap-2 md:col-span-6">
                   <SubmitButton className="btn-outline btn-sm">Save</SubmitButton>
+                  {u.lockedAt && (
+                    <button formAction={unlockUser.bind(null, u.id)} formNoValidate className="btn-primary btn-sm">
+                      Unlock account
+                    </button>
+                  )}
                 </div>
               </form>
             ))}

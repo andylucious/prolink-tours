@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { getReportData } from "@/lib/reports";
-import { label, money } from "@/lib/format";
+import { date, label, money } from "@/lib/format";
 import { PrintShell, TotalsBlock } from "../PrintShell";
 
 export default async function PrintReport({ searchParams }: { searchParams: Promise<{ year?: string; currency?: string }> }) {
@@ -117,6 +117,79 @@ export default async function PrintReport({ searchParams }: { searchParams: Prom
                 <tr key={src} className="border-b border-stone-100">
                   <td className="py-1.5">{label(src)}</td>
                   <td className="py-1.5 text-right font-semibold">{n}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <h2 className="mt-8 font-display text-lg text-brand-800">New clients &amp; accounts</h2>
+      <table className="mt-2 w-full text-xs">
+        <tbody>
+          <tr className="border-b border-stone-100">
+            <td className="py-1.5">New inquiries</td>
+            <td className="py-1.5 text-right font-semibold">
+              {r.inquiriesCount} <span className="font-normal text-stone-500">from {r.uniqueInquirers} different people</span>
+            </td>
+          </tr>
+          <tr className="border-b border-stone-100">
+            <td className="py-1.5">New clients added</td>
+            <td className="py-1.5 text-right font-semibold">{r.newClientsCount}</td>
+          </tr>
+          <tr className="border-b border-stone-100">
+            <td className="py-1.5">Clients who created an account</td>
+            <td className="py-1.5 text-right font-semibold">{r.newAccountsCount}</td>
+          </tr>
+        </tbody>
+      </table>
+      <table className="mt-3 w-full text-xs">
+        <tbody>
+          <tr className="border-b border-stone-200 text-left text-stone-500">
+            <th className="py-1 font-normal" />
+            {r.months.map((x) => (
+              <th key={x.m} className="py-1 font-normal">
+                {new Date(Date.UTC(2000, x.m, 1)).toLocaleString("en", { month: "short", timeZone: "UTC" })}
+              </th>
+            ))}
+          </tr>
+          <tr>
+            <td className="py-1 pr-2 text-stone-500">Inquiries</td>
+            {r.inquiriesByMonth.map((x) => (
+              <td key={x.m} className="py-1">
+                {x.total}
+              </td>
+            ))}
+          </tr>
+          <tr>
+            <td className="py-1 pr-2 text-stone-500">New clients</td>
+            {r.clientsByMonth.map((x) => (
+              <td key={x.m} className="py-1">
+                {x.clients}
+              </td>
+            ))}
+          </tr>
+          <tr>
+            <td className="py-1 pr-2 text-stone-500">With account</td>
+            {r.clientsByMonth.map((x) => (
+              <td key={x.m} className="py-1">
+                {x.accounts}
+              </td>
+            ))}
+          </tr>
+        </tbody>
+      </table>
+      {r.recentSignIns.length > 0 && (
+        <div className="mt-4 break-inside-avoid">
+          <p className="text-xs font-semibold text-stone-600">Latest client sign-ins</p>
+          <table className="mt-1 w-full text-xs">
+            <tbody>
+              {r.recentSignIns.map((c) => (
+                <tr key={c.email ?? c.name} className="border-b border-stone-100">
+                  <td className="py-1.5">
+                    {c.name} <span className="text-stone-500">{c.email}</span>
+                  </td>
+                  <td className="py-1.5 text-right text-stone-500">joined {date(c.createdAt)}</td>
+                  <td className="py-1.5 text-right">last in {date(c.lastLoginAt)}</td>
                 </tr>
               ))}
             </tbody>

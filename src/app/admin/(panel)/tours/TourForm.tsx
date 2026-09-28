@@ -1,9 +1,33 @@
 import { db } from "@/lib/db";
-import { CURRENCIES, label, toNum } from "@/lib/format";
+import { CURRENCIES, dateInput, label, toNum } from "@/lib/format";
 import { Card, EnumSelect, Field } from "@/components/admin/ui";
 import { SubmitButton } from "@/components/admin/client";
+import { ListPicker } from "@/components/admin/ListPicker";
+
+// One-tap ideas for the "included" lists — covers tours, events and road trips.
+const INCLUDED_IDEAS = [
+  "Professional photoshoot",
+  "Lunch",
+  "Dinner",
+  "Breakfast",
+  "Snacks",
+  "Bottled water",
+  "Soft drinks",
+  "Transport",
+  "Park entry fees",
+  "Professional guide",
+  "Entry ticket",
+  "Accommodation",
+  "Tour T-shirt",
+  "Travel insurance",
+  "Airport transfer",
+];
+const EXCLUDED_IDEAS = ["Alcoholic drinks", "Tips and gratuities", "Personal items", "Visa fees", "Flights", "Travel insurance", "Optional activities"];
 
 type T = {
+  kind?: string;
+  capacity?: number | null;
+  eventDate?: Date | null;
   title?: string;
   slug?: string;
   summary?: string;
@@ -27,6 +51,21 @@ export async function TourForm({ action, tour = {}, submitLabel }: { action: (fd
 
   return (
     <form action={action} className="space-y-6">
+      <Card title="Type, date & seats">
+        <div className="grid gap-4 md:grid-cols-4">
+          <Field label="What is this?">
+            <EnumSelect name="kind" values={["TOUR", "EVENT", "ROAD_TRIP"]} defaultValue={tour.kind ?? "TOUR"} />
+          </Field>
+          <Field label="Date (events & road trips)">
+            <input name="eventDate" type="date" defaultValue={dateInput(tour.eventDate)} className="input" />
+          </Field>
+          <Field label="Seats available">
+            <input name="capacity" type="number" min={0} defaultValue={tour.capacity ?? ""} placeholder="e.g. 33 — blank = no limit" className="input" />
+          </Field>
+          <p className="self-end text-xs text-stone-500">Regular tours can be booked for any date, so leave date and seats blank. For a one-off event or road trip, set the date and the seat limit — the site shows seats left and stops taking bookings when it&apos;s full.</p>
+        </div>
+      </Card>
+
       <Card title="Basics">
         <div className="grid gap-4 md:grid-cols-4">
           <Field label="Title *" className="md:col-span-3">
@@ -88,13 +127,14 @@ export async function TourForm({ action, tour = {}, submitLabel }: { action: (fd
         </div>
       </Card>
 
-      <Card title="Inclusions & exclusions (one per line)">
+      <Card title="What's included & not included">
+        <p className="mb-4 text-xs text-stone-500">Tap a suggestion to add or remove it, or type your own — one item per line.</p>
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="Included">
-            <textarea name="inclusions" rows={8} defaultValue={tour.inclusions ?? ""} className="input" />
+            <ListPicker name="inclusions" defaultValue={tour.inclusions ?? ""} suggestions={INCLUDED_IDEAS} />
           </Field>
           <Field label="Not included">
-            <textarea name="exclusions" rows={8} defaultValue={tour.exclusions ?? ""} className="input" />
+            <ListPicker name="exclusions" defaultValue={tour.exclusions ?? ""} suggestions={EXCLUDED_IDEAS} />
           </Field>
         </div>
       </Card>
