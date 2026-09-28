@@ -1,0 +1,467 @@
+// Tours & Travel ERP — MySQL / MariaDB schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────── Staff & settings ─────────────
+
+enum Role {
+  ADMIN
+  STAFF
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         Role      @default(STAFF)
+  // Section access for STAFF accounts, e.g. ["sales","operations"]. ADMIN always has full access
+  // regardless of this list. See PERMISSIONS in src/lib/permissions.ts.
+  permissions  Json?
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  inquiries    Inquiry[]
+}
+
+model Setting {
+  key   String @id @db.VarChar(100)
+  value String @db.Text
+}
+
+// ───────────── Catalog (public website content) ─────────────
+
+model Category {
+  id          Int     @id @default(autoincrement())
+  name        String
+  slug        String  @unique
+  description String? @db.Text
+  image       String?
+  sort        Int     @default(0)
+  tours       Tour[]
+}
+
+model Tour {
+  id              Int         @id @default(autoincrement())
+  slug            String      @unique
+  title           String
+  summary         String      @db.VarChar(500)
+  description     String      @db.Text
+  destination     String
+  durationDays    Int
+  coverImage      String?
+  inclusions      String      @db.Text // one item per line
+  exclusions      String      @db.Text // one item per line
+  priceFrom       Decimal     @db.Decimal(12, 2) // headline "from" price
+  currency        String      @default("USD") @db.VarChar(3)
+  featured        Boolean     @default(false)
+  published       Boolean     @default(true)
+  categoryId      Int
+  category        Category    @relation(fields: [categoryId], references: [id])
+  days            TourDay[]
+  images          TourImage[]
+  rates           TourRate[]
+  addOns          AddOn[]
+  inquiries       Inquiry[]
+  quotes          Quote[]
+  bookings        Booking[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model TourDay {
+  id            Int     @id @default(autoincrement())
+  tourId        Int
+  tour          Tour    @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  dayNumber     Int
+  title         String
+  description   String  @db.Text
+  accommodation String?
+  meals         String? // e.g. "B, L, D"
+}
+
+model TourImage {
+  id      Int     @id @default(autoincrement())
+  tourId  Int
+  tour    Tour    @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  url     String
+  caption String?
+  sort    Int     @default(0)
+}
+
+enum SeasonType {
+  PEAK
+  LOW
+}
+
+enum Residency {
+  RESIDENT
+  NON_RESIDENT
+}
+
+// Price per person for a season × residency × group-size band.
+model TourRate {
+  id             Int        @id @default(autoincrement())
+  tourId         Int
+  tour           Tour       @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  season         SeasonType
+  residency      Residency
+  minPax         Int        @default(1)
+  maxPax         Int        @default(99)
+  pricePerPerson Decimal    @db.Decimal(12, 2)
+  currency       String     @default("USD") @db.VarChar(3)
+}
+
+// Date ranges that count as PEAK season; anything else is LOW.
+model Season {
+  id        Int        @id @default(autoincrement())
+  name      String
+  type      SeasonType @default(PEAK)
+  startDate DateTime   @db.Date
+  endDate   DateTime   @db.Date
+}
+
+enum AddOnType {
+  CAR_HIRE
+  FLIGHT
+  ACCOMMODATION_UPGRADE
+  ACTIVITY
+  OTHER
+}
+
+enum PriceUnit {
+  PER_PERSON
+  PER_GROUP
+  PER_DAY
+  PER_PERSON_PER_DAY
+}
+
+model AddOn {
+  id          Int       @id @default(autoincrement())
+  name        String
+  type        AddOnType
+  description String?   @db.Text
+  price       Decimal   @db.Decimal(12, 2)
+  currency    String    @default("USD") @db.VarChar(3)
+  unit        PriceUnit @default(PER_PERSON)
+  active      Boolean   @default(true)
+  tours       Tour[]
+  inquiries   InquiryAddOn[]
+}
+
+model BlogPost {
+  id          Int       @id @default(autoincrement())
+  slug        String    @unique
+  title       String
+  excerpt     String    @db.VarChar(500)
+  content     String    @db.Text
+  coverImage  String?
+  published   Boolean   @default(true)
+  publishedAt DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model ContactMessage {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String
+  phone     String?
+  subject   String?
+  message   String   @db.Text
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// ───────────── Sales pipeline ─────────────
+
+enum InquiryStatus {
+  NEW
+  CONTACTED
+  QUOTED
+  WON
+  LOST
+}
+
+enum LeadSource {
+  WEBSITE
+  WHATSAPP
+  PHONE
+  EMAIL
+  WALK_IN
+  REFERRAL
+}
+
+model Inquiry {
+  id             Int            @id @default(autoincrement())
+  ref            String         @unique
+  tourId         Int?
+  tour           Tour?          @relation(fields: [tourId], references: [id], onDelete: SetNull)
+  customerId     Int?
+  customer       Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  name           String
+  email          String
+  phone          String?
+  country        String?
+  residency      Residency      @default(NON_RESIDENT)
+  adults         Int            @default(2)
+  children       Int            @default(0)
+  startDate      DateTime?      @db.Date
+  endDate        DateTime?      @db.Date
+  message        String?        @db.Text
+  estimatedTotal Decimal?       @db.Decimal(12, 2)
+  currency       String         @default("USD") @db.VarChar(3)
+  status         InquiryStatus  @default(NEW)
+  source         LeadSource     @default(WEBSITE)
+  notes          String?        @db.Text
+  assignedToId   Int?
+  assignedTo     User?          @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  addOns         InquiryAddOn[]
+  quotes         Quote[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model InquiryAddOn {
+  inquiryId Int
+  inquiry   Inquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  addOnId   Int
+  addOn     AddOn   @relation(fields: [addOnId], references: [id], onDelete: Cascade)
+
+  @@id([inquiryId, addOnId])
+}
+
+model Customer {
+  id           Int       @id @default(autoincrement())
+  name         String
+  email        String?   @unique
+  phone        String?
+  country      String?
+  residency    Residency @default(NON_RESIDENT)
+  company      String?
+  notes        String?   @db.Text
+  // Set only when the customer registered their own login (e.g. while booking online).
+  passwordHash String?
+  lastLoginAt  DateTime?
+  inquiries    Inquiry[]
+  quotes       Quote[]
+  bookings     Booking[]
+  invoices     Invoice[]
+  createdAt    DateTime  @default(now())
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+model Quote {
+  id         Int         @id @default(autoincrement())
+  number     String      @unique
+  customerId Int
+  customer   Customer    @relation(fields: [customerId], references: [id])
+  inquiryId  Int?
+  inquiry    Inquiry?    @relation(fields: [inquiryId], references: [id], onDelete: SetNull)
+  tourId     Int?
+  tour       Tour?       @relation(fields: [tourId], references: [id], onDelete: SetNull)
+  title      String
+  startDate  DateTime?   @db.Date
+  endDate    DateTime?   @db.Date
+  adults     Int         @default(2)
+  children   Int         @default(0)
+  currency   String      @default("USD") @db.VarChar(3)
+  status     QuoteStatus @default(DRAFT)
+  validUntil DateTime?   @db.Date
+  discount   Decimal     @default(0) @db.Decimal(12, 2)
+  notes      String?     @db.Text
+  items      QuoteItem[]
+  booking    Booking?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+// unitCost = what the supplier charges us; unitPrice = what we charge the client.
+model QuoteItem {
+  id          Int       @id @default(autoincrement())
+  quoteId     Int
+  quote       Quote     @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  supplierId  Int?
+  supplier    Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  description String
+  serviceDate DateTime? @db.Date
+  quantity    Decimal   @default(1) @db.Decimal(10, 2)
+  unitCost    Decimal   @default(0) @db.Decimal(12, 2)
+  unitPrice   Decimal   @default(0) @db.Decimal(12, 2)
+  sort        Int       @default(0)
+}
+
+// ───────────── Operations ─────────────
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model Booking {
+  id         Int              @id @default(autoincrement())
+  ref        String           @unique
+  customerId Int
+  customer   Customer         @relation(fields: [customerId], references: [id])
+  quoteId    Int?             @unique
+  quote      Quote?           @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  tourId     Int?
+  tour       Tour?            @relation(fields: [tourId], references: [id], onDelete: SetNull)
+  title      String
+  startDate  DateTime         @db.Date
+  endDate    DateTime         @db.Date
+  adults     Int              @default(2)
+  children   Int              @default(0)
+  currency   String           @default("USD") @db.VarChar(3)
+  total      Decimal          @default(0) @db.Decimal(12, 2)
+  status     BookingStatus    @default(CONFIRMED)
+  // true when the customer booked this themselves online (awaiting staff confirmation).
+  selfBooked Boolean          @default(false)
+  notes      String?          @db.Text
+  services   BookingService[]
+  invoices   Invoice[]
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+}
+
+enum ServiceStatus {
+  REQUESTED
+  CONFIRMED
+  CANCELLED
+}
+
+// A supplier service within a booking — each one can print as a voucher.
+model BookingService {
+  id           Int               @id @default(autoincrement())
+  bookingId    Int
+  booking      Booking           @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  supplierId   Int?
+  supplier     Supplier?         @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  description  String
+  serviceDate  DateTime?         @db.Date
+  quantity     Decimal           @default(1) @db.Decimal(10, 2)
+  cost         Decimal           @default(0) @db.Decimal(12, 2) // total cost payable to supplier
+  currency     String            @default("USD") @db.VarChar(3)
+  status       ServiceStatus     @default(REQUESTED)
+  voucherNo    String            @unique
+  notes        String?           @db.Text
+  payments     SupplierPayment[]
+}
+
+enum SupplierType {
+  LODGE
+  HOTEL
+  CAMP
+  TRANSPORT
+  AIRLINE
+  PARK
+  GUIDE
+  ACTIVITY
+  OTHER
+}
+
+model Supplier {
+  id          Int               @id @default(autoincrement())
+  name        String
+  type        SupplierType
+  contactName String?
+  email       String?
+  phone       String?
+  location    String?
+  paymentInfo String?           @db.Text
+  notes       String?           @db.Text
+  active      Boolean           @default(true)
+  quoteItems  QuoteItem[]
+  services    BookingService[]
+  payments    SupplierPayment[]
+  createdAt   DateTime          @default(now())
+}
+
+enum PaymentMethod {
+  MPESA
+  BANK
+  CASH
+  CARD
+  CHEQUE
+  OTHER
+}
+
+model SupplierPayment {
+  id         Int             @id @default(autoincrement())
+  supplierId Int
+  supplier   Supplier        @relation(fields: [supplierId], references: [id])
+  serviceId  Int?
+  service    BookingService? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  date       DateTime        @db.Date
+  amount     Decimal         @db.Decimal(12, 2)
+  currency   String          @default("USD") @db.VarChar(3)
+  method     PaymentMethod
+  reference  String?
+  notes      String?         @db.Text
+  createdAt  DateTime        @default(now())
+}
+
+// ───────────── Finance ─────────────
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PARTIAL
+  PAID
+  VOID
+}
+
+model Invoice {
+  id         Int           @id @default(autoincrement())
+  number     String        @unique
+  customerId Int
+  customer   Customer      @relation(fields: [customerId], references: [id])
+  bookingId  Int?
+  booking    Booking?      @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  issueDate  DateTime      @db.Date
+  dueDate    DateTime      @db.Date
+  currency   String        @default("USD") @db.VarChar(3)
+  discount   Decimal       @default(0) @db.Decimal(12, 2)
+  taxRate    Decimal       @default(0) @db.Decimal(5, 2) // percent
+  status     InvoiceStatus @default(DRAFT)
+  notes      String?       @db.Text
+  items      InvoiceItem[]
+  payments   Payment[]
+  createdAt  DateTime      @default(now())
+}
+
+model InvoiceItem {
+  id          Int     @id @default(autoincrement())
+  invoiceId   Int
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Decimal @default(1) @db.Decimal(10, 2)
+  unitPrice   Decimal @default(0) @db.Decimal(12, 2)
+  sort        Int     @default(0)
+}
+
+model Payment {
+  id        Int           @id @default(autoincrement())
+  invoiceId Int
+  invoice   Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  date      DateTime      @db.Date
+  amount    Decimal       @db.Decimal(12, 2)
+  method    PaymentMethod
+  reference String? // M-Pesa code, bank ref, etc.
+  notes     String?       @db.Text
+  createdAt DateTime      @default(now())
+}

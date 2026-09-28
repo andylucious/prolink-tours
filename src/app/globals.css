@@ -1,26 +1,173 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, serif;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Acacia green — primary brand */
+  --color-brand-50: #eef7f1;
+  --color-brand-100: #d5ebdc;
+  --color-brand-200: #aad6ba;
+  --color-brand-500: #2f7a52;
+  --color-brand-600: #24633f;
+  --color-brand-700: #1c4f33;
+  --color-brand-800: #163d28;
+  --color-brand-900: #0f2a1c;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Sunset amber — accent */
+  --color-accent-100: #fdf0d8;
+  --color-accent-400: #f0a33a;
+  --color-accent-500: #e08a17;
+  --color-accent-600: #bf6f0c;
+
+  /* Warm sand — page background */
+  --color-sand-50: #fcfaf6;
+  --color-sand-100: #f6f1e7;
+  --color-sand-200: #ebe2cf;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-sand-50);
+  color: #1c1917;
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 cursor-pointer active:scale-95;
+}
+@utility btn-primary {
+  @apply btn bg-brand-600 text-white shadow-sm hover:bg-brand-700 hover:shadow-md;
+}
+@utility btn-accent {
+  @apply btn bg-accent-500 text-white shadow-sm hover:bg-accent-600 hover:shadow-md;
+}
+@utility btn-outline {
+  @apply btn border border-stone-300 bg-white text-stone-800 hover:border-stone-400 hover:bg-stone-50;
+}
+@utility btn-danger {
+  @apply btn border border-red-200 bg-white text-red-700 hover:border-red-300 hover:bg-red-50;
+}
+@utility btn-sm {
+  @apply px-3 py-1.5 text-xs;
+}
+
+@layer components {
+  .input {
+    @apply block w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100;
+  }
+  .label {
+    @apply mb-1 block text-xs font-semibold uppercase tracking-wide text-stone-600;
+  }
+  .card {
+    @apply rounded-xl border border-stone-200 bg-white shadow-sm transition-shadow duration-200;
+  }
+  .card-hover {
+    @apply hover:shadow-md hover:-translate-y-0.5 transition-all duration-200;
+  }
+  .spinner {
+    @apply inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent;
+  }
+  .toolbar-btn {
+    @apply inline-flex items-center gap-1 rounded px-2.5 py-1.5 text-sm text-stone-700 transition-colors hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent;
+  }
+  .table {
+    @apply w-full text-left text-sm;
+  }
+  .table th {
+    @apply border-b border-stone-200 bg-stone-50 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-stone-500;
+  }
+  .table td {
+    @apply border-b border-stone-100 px-4 py-3 align-top;
+  }
+  .table tbody tr:hover {
+    @apply bg-stone-50/70;
+  }
+  .prose-content h2 {
+    @apply mt-8 mb-3 font-display text-2xl text-stone-900;
+  }
+  .prose-content p {
+    @apply my-4 leading-relaxed text-stone-700;
+  }
+  .prose-content ul {
+    @apply my-4 list-disc space-y-1 pl-6 text-stone-700;
+  }
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+.animate-page-in {
+  /* No `forwards`/`both` fill-mode: once this finishes, `transform` must fall back to `none`
+     rather than stay "set" at translateY(0) — an explicit transform value (even a zero one)
+     makes this element a containing block for any `position: fixed` descendant (e.g. modals),
+     which breaks their positioning. */
+  animation: page-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out both;
+}
+.animate-pulse-soft {
+  animation: pulse-soft 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-page-in,
+  .animate-fade-in,
+  .animate-pulse-soft,
+  .btn {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+  /* The on-screen zoom control in DocumentViewer must never affect the printed/PDF output. */
+  .doc-zoom {
+    zoom: 1 !important;
+  }
+  /* Keep chart bars, badges and cover photos in colour instead of the browser's default
+     print-in-black-and-white behaviour. */
+  * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .card {
+    box-shadow: none !important;
+    border-color: #d6d3d1 !important;
+  }
+  .print-break-avoid {
+    break-inside: avoid;
+  }
+  @page {
+    margin: 14mm;
+  }
 }
